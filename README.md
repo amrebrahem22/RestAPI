@@ -13,3 +13,12 @@ pip install djangorestframework
 pip install markdown       # Markdown support for the browsable API.
 pip install django-filter  # Filtering support  
 ```
+*Add 'rest_framework' to your INSTALLED_APPS setting.*
+``` python
+INSTALLED_APPS = [
+    ...
+    'rest_framework',
+]
+```
+
+
