@@ -54,3 +54,58 @@ class Status(models.Model): # fb status, instagram post, tweet, linkedin post
     def __str__(self):
         return str(self.content)[:50]
 ```
+> Now In models.py I created my model and added the  method for the image location  and created the class for the model manager that will control our queryset class
+
+### Model Form Validation
+*now i created a file call forms.py in the status app*
+``` python
+from django import forms
+
+from .models import Status
+
+class StatusForm(forms.ModelForm):
+    class Meta:
+        model = Status
+        fields = [
+            'user',
+            'content',
+            'image'
+        ]
+
+    def clean_content(self, *args, **kwargs):
+        content = self.cleaned_data.get('content')
+        if len(content) > 240:
+            raise forms.ValidationError("Content is too long")
+        return content
+
+    def clean(self, *args, **kwargs):
+        data = self.cleaned_data
+        content = data.get('content', None)
+        if content == "":
+            content = None
+        image = data.get("image", None)
+        if content is None and image is None:
+            raise forms.ValidationError('Content or image is required.')
+        return super().clean(*args, **kwargs)
+ ```
+ *and this form will use it in the admin*
+ *so in admin.py*
+ ``` python
+ from django.contrib import admin
+
+from .forms import StatusForm
+from .models import Status
+
+
+class StatusAdmin(admin.ModelAdmin):
+    list_display = ['user', '__str__', 'image']
+    form = StatusForm
+    # class Meta:
+    #     model = Status
+
+
+admin.site.register(Status, StatusAdmin
+```
+
+
+
