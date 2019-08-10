@@ -88,7 +88,7 @@ class StatusForm(forms.ModelForm):
             raise forms.ValidationError('Content or image is required.')
         return super().clean(*args, **kwargs)
  ```
- *and this form will use it in the admin*
+ *i cleaned the fields and the content field and this form will use it in the admin*
  *so in admin.py*
  ``` python
  from django.contrib import admin
@@ -100,12 +100,15 @@ from .models import Status
 class StatusAdmin(admin.ModelAdmin):
     list_display = ['user', '__str__', 'image']
     form = StatusForm
+    
+    # another way
     # class Meta:
     #     model = Status
 
 
-admin.site.register(Status, StatusAdmin
+admin.site.register(Status, StatusAdmin)
 ```
+### Creating a Serializer
 
 
 
