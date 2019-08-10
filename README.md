@@ -1,2 +1,2 @@
 # Rest Freamwork
-> that's the guid for using the rest freamwork in Django
+> that's the guide for using the rest freamwork in Django
