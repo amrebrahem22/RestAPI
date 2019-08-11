@@ -110,8 +110,10 @@ admin.site.register(Status, StatusAdmin)
 ```
 ### Creating a Serializer
 *now in the **status** app i created a new folder call **api** and inside this folder i created two files:*
+
 `1. __init__.py`
-`1. serializers.py`
+`2. serializers.py`
+
 *and in serializers.py*
 ``` python
 from rest_framework import serializers
@@ -129,7 +131,7 @@ class StatusSerializer(serializers.ModelSerializer):
             'image'
         ]
 ```
-*and if you notice the serialzer class is the same in forms.py, and itw ill convert it to json data*
+*and if you notice the serialzer class is the same in forms.py, and it will convert it to json data*
 
 
 
