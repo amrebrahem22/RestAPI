@@ -23,7 +23,7 @@ INSTALLED_APPS = [
 ```
 #### Status Model & App
 `python manage.py startapp status`
-> and in models.py
+ *and in models.py*
 ``` python
 from django.conf import settings
 from django.db import models
@@ -109,9 +109,9 @@ class StatusAdmin(admin.ModelAdmin):
 admin.site.register(Status, StatusAdmin)
 ```
 ### Creating a Serializer
-*now in the status app i created a new folder call api and inside this folder i created two files:*
-1. __init__.py
-1. serializers.py
+*now in the **status** app i created a new folder call **api** and inside this folder i created two files:*
+1. *__init__.py*
+1. *serializers.py*
 *and in serializers.py*
 ``` python
 from rest_framework import serializers
