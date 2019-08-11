@@ -109,6 +109,28 @@ class StatusAdmin(admin.ModelAdmin):
 admin.site.register(Status, StatusAdmin)
 ```
 ### Creating a Serializer
+*now in the status app i created a new folder call api and inside this folder i created two files:*
+1. __init__.py
+1. serializers.py
+*and in serializers.py*
+``` python
+from rest_framework import serializers
+from status.models import Status
+
+# Serializers -> JSON
+# Serializers -> validate data
+
+class StatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Status 
+        fields =[
+            'user',
+            'content',
+            'image'
+        ]
+```
+*and if you notice the serialzer class is the same in forms.py, and itw ill convert it to json data*
+
 
 
 
