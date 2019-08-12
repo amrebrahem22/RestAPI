@@ -262,7 +262,7 @@ class StatusSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Content or image is required.")
         return data
  ```
- > and there's another way to serialize by creating serialized fields but we will not use it now it's just to know
+ > and there's another way to serialize by creating serialized fields but we will not use it now it's just to know you can try it in the shell
  ``` python
  from rest_framework import serializers
 class CustomSerializer(serializers.Serializer):
@@ -277,7 +277,46 @@ if create_obj_serializer.is_valid():
     print(valid_data)
   ```
   ### API Endpoints Overview
+  *in **api** folder i created two files*
   
+  1. views.py
+  1. urls.py
+  
+  *and this will handle our CRUD and in urls.py*
+  ``` python
+  from django.conf.urls import url
+
+
+urlpatterns = [
+    url(r'^$', StatusListSearchAPIView.as_view()),
+    url(r'^create/$', StatusCreateAPIView.as_view()),
+    url(r'^(?P<id>.*)/$', StatusDetailAPIView.as_view()),
+    url(r'^(?P<id>.*)/update/$', StatusUpdateAPIView.as_view()),
+    url(r'^(?P<id>.*)/delete/$', StatusDeleteAPIView.as_view()),
+    
+]
+```
+*now that's how our urls will look like*
+**We will Start with this urls**
+```
+# /api/status/ -> List
+# /api/status/create -> Create
+# /api/status/12/ -> Detail
+# /api/status/12/update/ -> Update
+# /api/status/12/delete/ -> Delete
+```
+
+**then End With this urls two urls will handle the CRUD**
+```
+# /api/status/ -> List -> CRUD
+# /api/status/1/ -> Detail -> CRUD
+```
+
+**Finally we will end with one urls that will handle the CRUD**
+```
+# /api/status/ -> CRUD & LS
+  ```
+### List & Search API View
 
 
 
