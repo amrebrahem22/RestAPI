@@ -237,7 +237,47 @@ print(get_data_serializer.data)
 ```
 *to delete object*
 ### Validation & Fields
+*now in serializers.py i created the validate method*
+``` python
+class StatusSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Status 
+        fields =[
+            'user',
+            'content',
+            'image'
+        ]
 
+    # def validate_content(self, value):
+    #     if len(value) > 10000:
+    #         raise serializers.ValidationError("This is wayy too long.")
+    #     return value
+
+    def validate(self, data):
+        content = data.get("content", None)
+        if content == "":
+            content = None
+        image = data.get("image", None)
+        if content is None and image is None:
+            raise serializers.ValidationError("Content or image is required.")
+        return data
+ ```
+ > and there's another way to serialize by creating serialized fields but we will not use it now it's just to know
+ ``` python
+ from rest_framework import serializers
+class CustomSerializer(serializers.Serializer):
+    content =      serializers.CharField()
+    email       =  serializers.EmailField()
+
+
+data = {'email': 'hello@teamcfe.com', 'content': "please delete me"}
+create_obj_serializer = CustomSerializer(data=data)
+if create_obj_serializer.is_valid():
+    valid_data = create_obj_serializer.data
+    print(valid_data)
+  ```
+  ### API Endpoints Overview
+  
 
 
 
