@@ -317,6 +317,64 @@ urlpatterns = [
 # /api/status/ -> CRUD & LS
   ```
 ### List & Search API View
+``` python
+from rest_framework import generics
+# from rest_framework.generics import List
+from rest_framework.views import APIView
+from rest_framework.response import Response
+# from django.views.generic import View
 
+from status.models import Status
+from .serializers import StatusSerializer
+
+class StatusListSearchAPIView(APIView):
+    permission_classes          = []
+    authentication_classes      = []
+
+    def get(self, request, format=None):
+        qs = Status.objects.all()
+        serializer = StatusSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, format=None):
+        qs = Status.objects.all()
+        serializer = StatusSerializer(qs, many=True)
+        return Response(serializer.data)
+```
+*Now in api/views.py I imported the API view and the response then created a class based on the rest freamwork view api and we should define this two variables then define which method we will use here I defined the get method*
+``` python
+url(r'^api/updates/', include('updates.api.urls')), # api/updates/ --> list api/updates/1/ -->detail
+```
+*and in the main urls.py i included my urls*
+*And if we didn't specify `serializer = StatusSerializer(qs, many=True)` then when we go to the urls it will give us error because it’s not serialized so we will call the serialize class and print it’s data*
+*And when we go to the url it will print the data*
+``` python
+class StatusAPIView(generics.ListAPIView):
+    permission_classes          = []
+    authentication_classes      = []
+    serializer_class            = StatusSerializer
+
+    def get_queryset(self):
+        qs = Status.objects.all()
+        query = self.request.GET.get('q')
+        if query is not None:
+            qs = qs.filter(content__icontains=query)
+        return qs
+  ```
+  *then try to do it with another class that will inherit from list api view and we also create the method we will use to make our query and it's required or you will get error and created the serializer class*
+  ``` python
+from .views import StatusAPIView
+
+urlpatterns = [
+    url(r'^$', StatusAPIView.as_view()),
+    # url(r'^create/$', StatusCreateAPIView.as_view()),
+    # url(r'^(?P<id>.*)/$', StatusDetailAPIView.as_view()),
+    # url(r'^(?P<id>.*)/update/$', StatusUpdateAPIView.as_view()),
+    # url(r'^(?P<id>.*)/delete/$', StatusDeleteAPIView.as_view()),
+    
+]
+```
+*and n api/urls.py*
+*Now we have the view if you go to the url `api/updates/`*
 
 
