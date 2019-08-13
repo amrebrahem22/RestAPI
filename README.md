@@ -376,5 +376,92 @@ urlpatterns = [
 ```
 *and n api/urls.py*
 *Now we have the view if you go to the url `api/updates/`*
+### Create API View
+``` python
+class StatusCreateAPIView(generics.CreateAPIView):
+    permission_classes          = []
+    authentication_classes      = []
+    queryset                    = Status.objects.all()
+    serializer_class            = StatusSerializer
+
+    # def perform_create(self, serializer):
+    #     serializer.save(user=self.request.user)
+```
+*Now I created the api create view*
+``` python
+from .views import StatusAPIView, StatusCreateAPIView
+
+urlpatterns = [
+    url(r'^$', StatusAPIView.as_view()),
+    url(r'^create/$', StatusCreateAPIView.as_view()),    
+]
+```
+*And defined the url*
+### Detail API View
+``` python
+class StatusDetailAPIView(generics.RetrieveAPIView):
+    permission_classes          = []
+    authentication_classes      = []
+    queryset                    = Status.objects.all()
+    serializer_class            = StatusSerializer
+    #lookup_field                = 'id' # 'slug'
+
+    # def get_object(self, *args, **kwargs):
+    #     kwargs = self.kwargs
+    #     kw_id = kwargs.get('abc')
+    #     return Status.objects.get(id=kw_id)
+```
+*now i created the detail view that will inherit from `generics.RetrieveAPIView` now you should the pk in the url and if you passed the id in `urls.py` it will give you error so to use the id you should define `lookup_field` and you can use it to if you use the slug field or this method `get_object` but i commented it and will use the pk*
+``` python
+from .views import (
+    StatusAPIView, 
+    StatusCreateAPIView,
+    StatusDetailAPIView,
+    )
+
+urlpatterns = [
+    url(r'^$', StatusAPIView.as_view()),
+    url(r'^create/$', StatusCreateAPIView.as_view()),
+    url(r'^(?P<pk>.*)/$', StatusDetailAPIView.as_view()),
+]
+```
+*And here in the urls I use the primary key*
+### Update & Delete API Views
+``` python
+class StatusUpdateAPIView(generics.UpdateAPIView):
+    permission_classes          = []
+    authentication_classes      = []
+    queryset                    = Status.objects.all()
+    serializer_class            = StatusSerializer
+
+class StatusDeleteAPIView(generics.DestroyAPIView):
+    permission_classes          = []
+    authentication_classes      = []
+    queryset                    = Status.objects.all()
+    serializer_class            = StatusSerializer
+```
+*now i created the delete and update view*
+``` python
+from .views import (
+    StatusAPIView, 
+    StatusCreateAPIView,
+    StatusDetailAPIView,
+    StatusUpdateAPIView,
+    StatusDeleteAPIView
+    )
+
+urlpatterns = [
+    url(r'^$', StatusAPIView.as_view()),
+    url(r'^create/$', StatusCreateAPIView.as_view()),
+    url(r'^(?P<pk>\d+)/$', StatusDetailAPIView.as_view()),
+    url(r'^(?P<pk>\d+)/update/$', StatusUpdateAPIView.as_view()),
+    url(r'^(?P<pk>\d+)/delete/$', StatusDeleteAPIView.as_view()),   
+]
+```
+*and you can test it by going to `http://127.0.0.1:8000/status/api/1/update/` or `http://127.0.0.1:8000/status/api/1/delete/`*
+### Mixins to Power Http Methods
+
+
+
 
 
