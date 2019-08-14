@@ -460,8 +460,57 @@ urlpatterns = [
 ```
 *and you can test it by going to `http://127.0.0.1:8000/status/api/1/update/` or `http://127.0.0.1:8000/status/api/1/delete/`*
 ### Mixins to Power Http Methods
+`from rest_framework import generics, mixins`
+*First import the mixin*
+``` python
+# CreateModelMixin --- POST method
+# UpdateModelMixin --- PUT method
+# DestroyModelMixin -- DELETE method
 
+class StatusAPIView(mixins.CreateModelMixin, generics.ListAPIView): # Create List
+    permission_classes          = []
+    authentication_classes      = []
+    serializer_class            = StatusSerializer
 
+    def get_queryset(self):
+        qs = Status.objects.all()
+        query = self.request.GET.get('q')
+        if query is not None:
+            qs = qs.filter(content__icontains=query)
+        return qs
 
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    # def perform_create(self, serializer):
+    #     serializer.save(user=self.request.user)
+```
+*Then add the create model mixin to our class and create the post method that will create our object, now you can create and list objects just by this class*
+``` python
+class StatusDetailAPIView(mixins.DestroyModelMixin, mixins.UpdateModelMixin, generics.RetrieveAPIView):
+    permission_classes          = []
+    authentication_classes      = []
+    queryset                    = Status.objects.all()
+    serializer_class            = StatusSerializer
+    
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+```
+*And in the detail view I added the delete and update mixin and defined this two methods put and delete*
+``` python
+from .views import (
+    StatusAPIView, 
+    StatusDetailAPIView,
+    )
+
+urlpatterns = [
+    url(r'^$', StatusAPIView.as_view()),
+    url(r'^(?P<pk>\d+)/$', StatusDetailAPIView.as_view()),    
+]
+```
+*and `urls.py` And I removed this all urls and just keep the api view and the detail view*
 
 
