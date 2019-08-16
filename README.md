@@ -512,5 +512,301 @@ urlpatterns = [
 ]
 ```
 *and `urls.py` And I removed this all urls and just keep the api view and the detail view*
+### One API Endpoint for CRUDL
+``` python
+class StatusAPIView(
+    mixins.CreateModelMixin, 
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    generics.ListAPIView): 
+    permission_classes          = []
+    authentication_classes      = []
+    serializer_class            = StatusSerializer
+
+    def get_queryset(self):
+        request = self.request
+        qs = Status.objects.all()
+        query = request.GET.get('q')
+        if query is not None:
+            qs = qs.filter(content__icontains=query)
+        return qs
+
+    def get_object(self):
+        request         = self.request
+        passed_id       = request.GET.get('id', None)
+        queryset        = self.get_queryset()
+        obj = None
+        if passed_id is not None:
+            obj = get_object_or_404(queryset, id=passed_id)
+            self.check_object_permissions(request, obj)
+        return obj
+
+    def get(self, request, *args, **kwargs):
+        passed_id       = request.GET.get('id', None)
+        #request.body
+        #request.data
+        if passed_id is not None:
+            return self.retrieve(request, *args, **kwargs)
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+```
+*Now I will create just one class to handle all our methods Then I copied the get_queryset method and the get_object and modified it to get the id from the request and check if it’s passed and if true then get this object and use the check_objects_permissions method built in with rest freamwork that will check the permission And define the get method to retrieve it with that id* </br>
+*and if you go to the url you will find all methods appear*
+``` python
+def get(self, request, *args, **kwargs):
+        url_passed_id    = request.GET.get('id', None)
+        json_data        = {}
+        body_            = request.body
+        if is_json(body_):
+            json_data        = json.loads(request.body)
+        new_passed_id    = json_data.get('id', None)
+        #print(request.body)
+        #request.data
+        passed_id = url_passed_id or new_passed_id or None
+        self.passed_id = passed_id
+        if passed_id is not None:# or passed_id is not "":
+            return self.retrieve(request, *args, **kwargs)
+        return super().get(request, *args, **kwargs)
+```
+*and in the get method I defined the passed id variable that will display the json data or the normal id*
+``` python
+from .views import StatusAPIView
+
+urlpatterns = [
+    url(r'^$', StatusAPIView.as_view()),
+ ]
+```
+*now we have one url*
+``` python
+import json
+import requests
+
+ENDPOINT = "http://127.0.0.1:8000/api/status/"
+
+def do(method='get', data={}, is_json=True):
+    headers = {}
+    if is_json:
+        headers['content-type'] = 'application/json'
+        data = json.dumps(data)
+    r = requests.request(method, ENDPOINT, data=data, headers=headers)
+    print(r.text)
+    print(r.status_code)
+    return r
+
+do(data={'id': 500})
+```
+*in `cfe_rest_framework_api.py` Then I created a folder out of our project to test it and in this file I imported the requests library and installed it then created a method call do and when i run it in the terminal it will print the object and I will use the is_json to convert it to string*
+
+``` python
+def is_json(json_data):
+    try:
+        real_json = json.loads(json_data)
+        is_valid = True
+    except ValueError:
+        is_valid = False
+    return is_valid
+```
+*Then I created this method that will check if it json or not*
+``` python
+class StatusAPIView(
+    mixins.CreateModelMixin, 
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    generics.ListAPIView): 
+    permission_classes          = []
+    authentication_classes      = []
+    serializer_class            = StatusSerializer
+    passed_id                   = None
+```
+*And modified the passed id variable And assign the passed id to my id in the get method*
+``` python
+def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        url_passed_id    = request.GET.get('id', None)
+        json_data        = {}
+        body_            = request.body
+        if is_json(body_):
+            json_data        = json.loads(request.body)
+        new_passed_id    = json_data.get('id', None)
+        #print(request.body)
+        #request.data
+        passed_id = url_passed_id or new_passed_id or None
+        self.passed_id = passed_id
+        return self.update(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        url_passed_id    = request.GET.get('id', None)
+        json_data        = {}
+        body_            = request.body
+        if is_json(body_):
+            json_data        = json.loads(request.body)
+        new_passed_id    = json_data.get('id', None)
+        #print(request.body)
+        #request.data
+        passed_id = url_passed_id or new_passed_id or None
+        self.passed_id = passed_id
+        return self.update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        url_passed_id    = request.GET.get('id', None)
+        json_data        = {}
+        body_            = request.body
+        if is_json(body_):
+            json_data        = json.loads(request.body)
+        new_passed_id    = json_data.get('id', None)
+```
+*And add this code to the other methods But I didn’t add it to the post*
+``` python
+do(data={'id': 500}) # retrieve
+
+do(method='delete', data={'id': 13}) # delete
+
+do(method='put', data={'id': 13, "content": "some cool new content", 'user': 1}) # update
+
+do(method='post', data={"content": "some cool new content", 'user': 1}) # create
+```
+*And I will try with all other methods It’s will work but the delete not work yet* </br>
+*In order to make the delete method work we should define this method we will create this method*
+``` python
+def perform_destroy(self, instance):
+        if instance is not None:
+            return instance.delete()
+        return None
+```
+####                And Here's the Whole Code 
+``` python
+import json
+from rest_framework import generics, mixins
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+
+from status.models import Status
+from .serializers import StatusSerializer
+
+# # CreateModelMixin --- POST method
+# # UpdateModelMixin --- PUT method
+# # DestroyModelMixin -- DELETE method
+def is_json(json_data):
+    try:
+        real_json = json.loads(json_data)
+        is_valid = True
+    except ValueError:
+        is_valid = False
+    return is_valid
+
+
+class StatusAPIView(
+    mixins.CreateModelMixin, 
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    generics.ListAPIView): 
+    permission_classes          = []
+    authentication_classes      = []
+    serializer_class            = StatusSerializer
+    passed_id                   = None
+
+    def get_queryset(self):
+        request = self.request
+        qs = Status.objects.all()
+        query = request.GET.get('q')
+        if query is not None:
+            qs = qs.filter(content__icontains=query)
+        return qs
+
+    def get_object(self):
+        request         = self.request
+        passed_id       = request.GET.get('id', None) or self.passed_id
+        queryset        = self.get_queryset()
+        obj = None
+        if passed_id is not None:
+            obj = get_object_or_404(queryset, id=passed_id)
+            self.check_object_permissions(request, obj)
+        return obj
+
+    def perform_destroy(self, instance):
+        if instance is not None:
+            return instance.delete()
+        return None
+
+    def get(self, request, *args, **kwargs):
+        url_passed_id    = request.GET.get('id', None)
+        json_data        = {}
+        body_            = request.body
+        if is_json(body_):
+            json_data        = json.loads(request.body)
+        new_passed_id    = json_data.get('id', None)
+        #print(request.body)
+        #request.data
+        passed_id = url_passed_id or new_passed_id or None
+        self.passed_id = passed_id
+        if passed_id is not None:# or passed_id is not "":
+            return self.retrieve(request, *args, **kwargs)
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def put(self, request, *args, **kwargs):
+        url_passed_id    = request.GET.get('id', None)
+        json_data        = {}
+        body_            = request.body
+        if is_json(body_):
+            json_data        = json.loads(request.body)
+        new_passed_id    = json_data.get('id', None)
+        #print(request.body)
+        #request.data
+        passed_id = url_passed_id or new_passed_id or None
+        self.passed_id = passed_id
+        return self.update(request, *args, **kwargs)
+
+    def patch(self, request, *args, **kwargs):
+        url_passed_id    = request.GET.get('id', None)
+        json_data        = {}
+        body_            = request.body
+        if is_json(body_):
+            json_data        = json.loads(request.body)
+        new_passed_id    = json_data.get('id', None)
+        #print(request.body)
+        #request.data
+        passed_id = url_passed_id or new_passed_id or None
+        self.passed_id = passed_id
+        return self.update(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        url_passed_id    = request.GET.get('id', None)
+        json_data        = {}
+        body_            = request.body
+        if is_json(body_):
+            json_data        = json.loads(request.body)
+        new_passed_id    = json_data.get('id', None)
+        #print(request.body)
+        #request.data
+        passed_id = url_passed_id or new_passed_id or None
+        self.passed_id = passed_id
+        return self.destroy(request, *args, **kwargs)
+```
+
+
+
+
+
+
 
 
