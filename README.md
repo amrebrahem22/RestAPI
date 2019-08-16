@@ -802,7 +802,52 @@ class StatusAPIView(
         self.passed_id = passed_id
         return self.destroy(request, *args, **kwargs)
 ```
+### Uploading & Handling Images
+``` python
+def upload_status_image(instance, filename):
+    return "status/{user}/{filename}".format(user=instance.user, filename=filename)
+```
+*In models.py I will upload my image to this path*
+``` python
+MEDIA_ROOT = os.path.join(os.path.dirname(BASE_DIR), 'static-server', 'media-root') # '/Users/cfe/dev/restapi/'
+MEDIA_URL = '/media/'
+```
+*And add the path in settings.py to be in our virtual environment not in the project*
+``` python
+import json
+import requests
+import os
 
+ENDPOINT = "http://127.0.0.1:8000/api/status/"
+
+image_path = os.path.join(os.getcwd(), "logo.jpg")
+
+def do_img(method='get', data={}, is_json=True, img_path=None):
+    headers = {}
+    if is_json:
+        headers['content-type'] = 'application/json'
+        data = json.dumps(data)
+    if img_path is not None:
+        with open(image_path, 'rb') as image:
+            file_data = {
+                'image': image
+            }
+            r = requests.request(method, ENDPOINT, data=data, files=file_data, headers=headers)
+    else:
+        r = requests.request(method, ENDPOINT, data=data, headers=headers)
+    print(r.text)
+    print(r.status_code)
+    return r
+
+do_img(
+    method='post', 
+    data={'user': 1, "content": ""}, 
+    is_json=False, 
+    img_path=image_path
+    )
+```
+*Then in my test file I will get the image path in my folder and then will create the method for the image then create if statement that will open this image as binary file then create a dictionary with this image and make a request to this url with this data and add the files argument to have our image dictionary and add the headers else we will make our normal request then call our method with the post method so that’s mean we will create and add the data and make the is_json false because we will not use json and add the image path Now everytime I call this file it will create a new object with this image*
+### 2 Views for CRUDL
 
 
 
