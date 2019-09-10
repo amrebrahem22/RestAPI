@@ -1432,7 +1432,684 @@ def jwt_response_payload_handler(token, user=None, request=None):
     }
 ```
 *And I replaced our variable to get it from the api_settings in utils.py*
+### Register API View
+``` python
+User = get_user_model()
 
+class AuthAPIView(APIView):
+    permission_classes      = [permissions.AllowAny]
+    def post(self, request, *args, **kwargs):
+        #print(request.user)
+        if request.user.is_authenticated():
+            return Response({'detail': 'You are already authenticated'}, status=400)
+        data = request.data
+        username = data.get('username') # username or email address
+        password = data.get('password')
+        qs = User.objects.filter(
+                Q(username__iexact=username)|
+                Q(email__iexact=username)
+            ).distinct()
+        if qs.count() == 1:
+            user_obj = qs.first()
+            if user_obj.check_password(password):
+                user = user_obj
+                payload = jwt_payload_handler(user)
+                token = jwt_encode_handler(payload)
+                response = jwt_response_payload_handler(token, user, request=request)
+                return Response(response)
+        return Response({"detail": "Invalid credentials"}, status=401)
+```
+*First I removed the Authenticate method because the check_password do the same and created another api view to register a new user*
+
+``` python
+class RegisterAPIView(APIView):
+    permission_classes      = [permissions.AllowAny]
+    def post(self, request, *args, **kwargs):
+        if request.user.is_authenticated():
+            return Response({'detail': 'You are already registered and are authenticated.'}, status=400)
+        data = request.data
+        username        = data.get('username') # username or email address
+        email           = data.get('username')
+        password        = data.get('password')
+        password2       = data.get('password2')
+        qs = User.objects.filter(
+                Q(username__iexact=username)|
+                Q(email__iexact=username)
+            )
+        if password != password2:
+            return Response({"password": "Password must match."}, status=401)
+        if qs.exists():
+            return Response({"detail": "This user already exists"}, status=401)
+        else:
+            user = User.objects.create(username=username, email=email)
+            user.set_password(password)
+            user.save()
+            payload = jwt_payload_handler(user)
+            token = jwt_encode_handler(payload)
+            response = jwt_response_payload_handler(token, user, request=request)
+            return Response(response, status=201)
+            return Response({'detail': "Thank you for registering. Please verify your email."}, status=201)
+        return Response({"detail": "Invalid Request"}, status=400)
+```
+*And in the register api view I copied everything from the other view and paste it here and will make sure the user is not exists and create a new one if not exist*
+``` python
+from django.conf.urls import url, include
+from django.contrib import admin
+
+from rest_framework_jwt.views import refresh_jwt_token, obtain_jwt_token # accounts app
+
+from .views import AuthAPIView, RegisterAPIView
+urlpatterns = [
+    url(r'^$', AuthAPIView.as_view()),
+    url(r'^register/$', RegisterAPIView.as_view()),
+    url(r'^jwt/$', obtain_jwt_token),
+    url(r'^jwt/refresh/$', refresh_jwt_token),
+]
+```
+*And create the new url*
+``` python
+import json
+import requests
+import os
+
+
+AUTH_ENDPOINT = "http://127.0.0.1:8000/api/auth/register/"
+REFRESH_ENDPOINT = AUTH_ENDPOINT + "refresh/"
+ENDPOINT = "http://127.0.0.1:8000/api/status/"
+
+image_path = os.path.join(os.getcwd(), "logo.jpg")
+
+headers = {
+    "Content-Type": "application/json",
+    #"Authorization": "JWT " + 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImNmZSIsImV4cCI6MTUxMzIwNjEwOSwiZW1haWwiOiIiLCJvcmlnX2lhdCI6MTUxMzIwNTgwOX0.JCIM7Es7-pJpKVv4-OrEjCFVYsIegRxELu6YATayu7k',
+}
+
+data = {
+    'username': 'cfe4',
+    'email': 'cfe4@teamcfe.com',
+    'password': 'learncode',
+    'password2': 'learncode'
+}
+
+r = requests.post(AUTH_ENDPOINT, data=json.dumps(data), headers=headers)
+token = r.json() #['token']
+print(token)
+```
+*And in the test file I try to create a new one*
+``` python
+if password != password2:
+            return Response({"password": "Password must match."}, status=401)
+        if qs.exists():
+            return Response({"detail": "This user already exists"}, status=401)
+        else:
+            user = User.objects.create(username=username, email=email)
+            user.set_password(password)
+            user.save()
+            # payload = jwt_payload_handler(user)
+            # token = jwt_encode_handler(payload)
+            # response = jwt_response_payload_handler(token, user, request=request)
+            # return Response(response, status=201)
+            return Response({'detail': "Thank you for registering. Please verify your email."}, status=201)
+        return Response({"detail": "Invalid Request"}, status=400)
+```
+*And here if I want to verify it first*
+### User Register Serializer
+``` python
+from django.contrib.auth import get_user_model
+from rest_framework import serializers
+
+User = get_user_model()
+
+class UserRegisterSerializer(serializers.ModelSerializer):
+    password            = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    class Meta:
+        model = User
+        fields = [
+            'username',
+            'email',
+            'password',
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
+```
+*In accounts app in the api folder I created a file call serializer.py and created my serializer with the password field and set the write only to true because if false will show the hash password*
+``` python
+from django.contrib.auth import authenticate, get_user_model
+from django.db.models import Q
+from rest_framework import generics, permissions
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework_jwt.settings import api_settings
+
+from .serializers import UserRegisterSerializer
+```
+*And in api/views.py I imported my serializer and the generics*
+``` python
+class RegisterAPIView(generics.CreateAPIView):
+    queryset                = User.objects.all()
+    serializer_class        = UserRegisterSerializer
+    permission_classes      = [permissions.AllowAny]
+```
+*Then I commented the old view and created the new one*
+</br>
+*And in the test file I try to create new user with the same previous code*
+``` python
+class UserRegisterSerializer(serializers.ModelSerializer):
+    password            = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    password2           = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    class Meta:
+        model = User
+        fields = [
+            'username',
+            'email',
+            'password',
+            'password2'
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def validate(self, data):
+        pw  = data.get('password')
+        pw2 = data.pop('password2')
+        if pw != pw2:
+            raise serializers.ValidationError("Passwords must match")
+        return data
+```
+*Then created the second password field and will validate it* </br>
+*And when we go to this url it will give us error because we didn’t created the create method*
+``` python
+def create(self, validated_data):  
+    #print(validated_data)
+    user_obj = User(
+            username=validated_data.get('username'), 
+            email=validated_data.get('email'))
+    user_obj.set_password(validated_data.get('password'))
+    user_obj.save()
+    return user_obj
+```
+*Now I defined the create method in our serializer and in the second password I use the pop to get it because if you used the get it will get it as a field call password2 like email=email, password=password, password2=password2 so here you will need to use the pop*
+``` python
+#password            = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+# extra_kwargs = {'password': {'write_only': True}}
+```
+*And if I commented this two, I will get the hash  password*
+``` python
+class UserRegisterSerializer(serializers.ModelSerializer):
+    #password            = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    password2           = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    class Meta:
+        model = User
+        fields = [
+            'username',
+            'email',
+            'password',
+            'password2'
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def validate_email(self, value):
+        qs = User.objects.filter(email__iexact=value)
+        if qs.exists():
+            raise serializers.ValidationError("User with this email already exists")
+        return value
+
+    def validate_username(self, value):
+        qs = User.objects.filter(username__iexact=value)
+        if qs.exists():
+            raise serializers.ValidationError("User with this username already exists")
+        return value
+
+
+    def validate(self, data):
+        pw  = data.get('password')
+        pw2 = data.pop('password2')
+        if pw != pw2:
+            raise serializers.ValidationError("Passwords must match")
+        return data
+
+    def create(self, validated_data):  
+        #print(validated_data)
+        user_obj = User(
+                username=validated_data.get('username'), 
+                email=validated_data.get('email'))
+        user_obj.set_password(validated_data.get('password'))
+        user_obj.save()
+        return user_obj
+```
+*Then I added this two validations*
+### Serializer Method Field
+``` python
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+
+from rest_framework import serializers
+from rest_framework_jwt.settings import api_settings
+
+jwt_payload_handler             = api_settings.JWT_PAYLOAD_HANDLER
+jwt_encode_handler              = api_settings.JWT_ENCODE_HANDLER
+jwt_response_payload_handler    = api_settings.JWT_RESPONSE_PAYLOAD_HANDLER
+expire_delta             = api_settings.JWT_REFRESH_EXPIRATION_DELTA
+
+User = get_user_model()
+
+class UserRegisterSerializer(serializers.ModelSerializer):
+    #password            = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    password2           = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    token               = serializers.SerializerMethodField(read_only=True)
+```
+*Now I imported the handlers and created a new serializer field that will be read only and added it to fields*
+``` python
+def get_token(self, obj): # instance of the model 
+    user = obj
+    payload = jwt_payload_handler(user)
+    token = jwt_encode_handler(payload)
+    return token
+```
+*Then created a new method with the get for the token field to return the token in `UserRegisterSerializer`*
+``` python
+import json
+import requests
+import os
+
+AUTH_ENDPOINT = "http://127.0.0.1:8000/api/auth/register/"
+REFRESH_ENDPOINT = AUTH_ENDPOINT + "refresh/"
+ENDPOINT = "http://127.0.0.1:8000/api/status/"
+
+image_path = os.path.join(os.getcwd(), "logo.jpg")
+
+headers = {
+    "Content-Type": "application/json",
+    #"Authorization": "JWT " + 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJ1c2VybmFtZSI6ImNmZSIsImV4cCI6MTUxMzIwNjEwOSwiZW1haWwiOiIiLCJvcmlnX2lhdCI6MTUxMzIwNTgwOX0.JCIM7Es7-pJpKVv4-OrEjCFVYsIegRxELu6YATayu7k',
+}
+
+data = {
+    'username': 'cfe9',
+    'email': 'cfe9@teamcfe.com',
+    'password': 'learncode',
+    'password2': 'learncode'
+}
+
+r = requests.post(AUTH_ENDPOINT, data=json.dumps(data), headers=headers)
+token = r.json() #['token']
+print(token)
+```
+*Then  will try to create a new one in our test file, And here it returned the token after creating*
+``` python
+jwt_payload_handler             = api_settings.JWT_PAYLOAD_HANDLER
+jwt_encode_handler              = api_settings.JWT_ENCODE_HANDLER
+jwt_response_payload_handler    = api_settings.JWT_RESPONSE_PAYLOAD_HANDLER
+expire_delta             = api_settings.JWT_REFRESH_EXPIRATION_DELTA
+
+User = get_user_model()
+
+class UserRegisterSerializer(serializers.ModelSerializer):
+    #password            = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    password2           = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    token               = serializers.SerializerMethodField(read_only=True)
+    expires             = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = User
+        fields = [
+            'username',
+            'email',
+            'password',
+            'password2',
+            'token',
+            'expires',
+
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
+
+        def get_expires(self, obj):
+            return timezone.now() + expire_delta - datetime.timedelta(seconds=200)
+```
+*Then I get the expire date and created a field for this and created a method for this field*
+``` python
+class UserRegisterSerializer(serializers.ModelSerializer):
+    #password            = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    password2           = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    token               = serializers.SerializerMethodField(read_only=True)
+    expires             = serializers.SerializerMethodField(read_only=True)
+    token_response      = serializers.SerializerMethodField(read_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'username',
+            'email',
+            'password',
+            'password2',
+            'token',
+            'expires',
+            'token_response',
+
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def get_token_response(self, obj):
+        payload = jwt_payload_handler(user)
+        token = jwt_encode_handler(payload)
+        response = jwt_response_payload_handler(token, user, request=None)
+        return response
+
+    def get_expires(self, obj):
+        return timezone.now() + expire_delta - datetime.timedelta(seconds=200)
+
+    def validate_email(self, value):
+        qs = User.objects.filter(email__iexact=value)
+        if qs.exists():
+            raise serializers.ValidationError("User with this email already exists")
+        return value
+
+    def validate_username(self, value):
+        qs = User.objects.filter(username__iexact=value)
+        if qs.exists():
+            raise serializers.ValidationError("User with this username already exists")
+        return value
+
+    def get_token(self, obj): # instance of the model 
+        user = obj
+        payload = jwt_payload_handler(user)
+        token = jwt_encode_handler(payload)
+        return token
+
+    def validate(self, data):
+        pw  = data.get('password')
+        pw2 = data.pop('password2')
+        if pw != pw2:
+            raise serializers.ValidationError("Passwords must match")
+        return data
+
+    def create(self, validated_data):  
+        #print(validated_data)
+        user_obj = User(
+                username=validated_data.get('username'), 
+                email=validated_data.get('email'))
+        user_obj.set_password(validated_data.get('password'))
+        user_obj.save()
+        return user_obj
+```
+*Then created a field for this token response and in its method I will return the response*
+### Get Context Data
+``` python
+class RegisterAPIView(generics.CreateAPIView):
+    queryset                = User.objects.all()
+    serializer_class        = UserRegisterSerializer
+    permission_classes      = [permissions.AllowAny]
+
+    def get_serializer_context(self, *args, **kwargs):
+        return {"request": self.request}
+```
+*First I created a method for the serializer context  that will return the request*
+``` python
+class UserRegisterSerializer(serializers.ModelSerializer):
+    password2           = serializers.CharField(style={'input_type': 'password'}, write_only=True)
+    token               = serializers.SerializerMethodField(read_only=True)
+    expires             = serializers.SerializerMethodField(read_only=True)
+    message             = serializers.SerializerMethodField(read_only=True)
+    class Meta:
+        model = User
+        fields = [
+            'username',
+            'email',
+            'password',
+            'password2',
+            'token',
+            'expires',
+
+            'message',
+
+        ]
+        extra_kwargs = {'password': {'write_only': True}}
+
+    def get_message(self, obj):
+        return "Thank you for registering. Please verify your email before continuing."
+```
+*Then I created the serializer message field*
+``` python
+def create(self, validated_data):  
+    #print(validated_data)
+    user_obj = User(
+            username=validated_data.get('username'), 
+            email=validated_data.get('email'))
+    user_obj.set_password(validated_data.get('password'))
+    user_obj.is_active = False
+    user_obj.save()
+    return user_obj
+```
+*Then in the serializer file I created the create method that will create a new one*
+### Custom Permissions
+``` python
+from rest_framework import permissions
+
+class BlacklistPermission(permissions.BasePermission):
+    """
+    Global permission check for blacklisted IPs.
+    """
+
+    def has_permission(self, request, view):
+        ip_addr = request.META['REMOTE_ADDR']
+        blacklisted = Blacklist.objects.filter(ip_addr=ip_addr).exists()
+        return not blacklisted
+
+class IsOwnerOrReadOnly(permissions.BasePermission):
+    """
+    Object-level permission to only allow owners of an object to edit it.
+    Assumes the model instance has an `owner` attribute.
+    """
+
+    def has_object_permission(self, request, view, obj):
+        # Read permissions are allowed to any request,
+        # so we'll always allow GET, HEAD or OPTIONS requests.
+        if request.method in permissions.SAFE_METHODS:
+            return True
+
+        # Instance must have an attribute named `owner`.
+        return obj.owner == request.user
+```
+*Now I created the permission.py file and copied an d paste the code form the documentation `https://www.django-rest-framework.org/api-guide/permissions/` and that’s our permissions we will modify it and the is owner or read only class will return true if the user is the owner that’s mean you can modify just your post not the other*
+``` python
+class AnonPermissionOnly(permissions.BasePermission):
+    message = 'You are already authenticated. Please log out to try again.'
+    """
+    Non-authenicated Users only
+    """
+
+    def has_permission(self, request, view):
+        return not request.user.is_authenticated() # request.user.is_authenticated
+```
+*Then I created this new permission for not permission people for not authenticated people and will return true for not authenticated users*
+``` python
+from .permissions import AnonPermissionOnly
+```
+*Then in accounts/api/views.py I imported it*
+``` python
+class RegisterAPIView(generics.CreateAPIView):
+    queryset                = User.objects.all()
+    serializer_class        = UserRegisterSerializer
+    permission_classes      = [AnonPermissionOnly]
+
+    def get_serializer_context(self, *args, **kwargs):
+        return {"request": self.request}
+```
+*And added it to just not registered users to sign up*
+``` python
+import json
+import requests
+import os
+
+AUTH_ENDPOINT = "http://127.0.0.1:8000/api/auth/register/"
+REFRESH_ENDPOINT = AUTH_ENDPOINT + "refresh/"
+ENDPOINT = "http://127.0.0.1:8000/api/status/"
+
+image_path = os.path.join(os.getcwd(), "logo.jpg")
+
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": "JWT " + 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxNSwidXNlcm5hbWUiOiJjZmUxNiIsImV4cCI6MTUxMzIxMDMxOCwiZW1haWwiOiJjZmUxNkB0ZWFtY2ZlLmNvbSIsIm9yaWdfaWF0IjoxNTEzMjEwMDE4fQ.DXPPoCEwnV8uPjoCaFGqTenk8VG1m8tD3Xa0PBVZJ-o',
+}
+
+data = {
+    'username': 'cfe17',
+    'email': 'cfe17@teamcfe.com',
+    'password': 'learncode',
+    'password2': 'learncode'
+}
+
+r = requests.post(AUTH_ENDPOINT, data=json.dumps(data), headers=headers)
+token = r.json() #['token']
+print(token)
+```
+*Now I will test it* </br>
+*but you will need to go to the admin and make this user active*
+``` python
+class AuthAPIView(APIView):
+    permission_classes      = [AnonPermissionOnly]
+    def post(self, request, *args, **kwargs):
+```
+*Then added it to the auth api view*
+``` python
+class AnonPermissionOnly(permissions.BasePermission):
+    message = 'You are already authenticated. Please log out to try again.'
+    """
+    Non-authenicated Users only
+    """
+
+    def has_permission(self, request, view):
+        return not request.user.is_authenticated() # request.user.is_authenticated
+```
+*And added the message to this permission that will display for the user*
+### Is Owner or Read Only Permission
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
+
+``` python
+
+```
 
 
 
